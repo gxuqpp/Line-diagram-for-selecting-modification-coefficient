@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>变位系数选择线图 · 交互演示</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=JetBrains+Mono:wght@400;600&family=Noto+Sans+SC:wght@300;400;500&display=swap');
+:root{
+  --bg:#0f1117; --surface:#181c27; --surface2:#1e2235;
+  --border:#2a3050; --border2:#3a4570;
+  --ink:#e8eaf2; --ink2:#9aa3c0; --ink3:#5a6380;
+  --blue:#4a90e2; --blue-l:#6ab0ff; --blue-d:#1a4a8a;
+  --teal:#2dd4bf; --teal-d:#0f766e;
+  --amber:#f59e0b; --amber-l:#fcd34d;
+  --red:#f87171; --red-d:#991b1b;
+  --green:#4ade80; --green-d:#166534;
+  --purple:#a78bfa;
+  --mono:'JetBrains Mono',monospace;
+  --serif:'Noto Serif SC',serif;
+  --sans:'Noto Sans SC',sans-serif;
+  --r:6px; --r2:10px;
+  --shadow:0 4px 24px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--ink);font-size:14px;line-height:1.6;min-height:100vh}
+
+/* ── Layout ── */
+.app{display:grid;grid-template-columns:300px 1fr;grid-template-rows:56px 1fr;height:100vh;overflow:hidden}
+.topbar{grid-column:1/-1;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;padding:0 24px}
+.topbar h1{font-family:var(--serif);font-size:1rem;font-weight:600;color:var(--ink);letter-spacing:.04em}
+.topbar .badge{font-family:var(--mono);font-size:.6rem;background:var(--blue-d);color:var(--blue-l);padding:2px 8px;border-radius:3px}
+.sidebar{background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:20px 16px;display:flex;flex-direction:column;gap:14px}
+.main{display:flex;flex-direction:column;overflow:hidden}
+
+/* ── Sidebar inputs ── */
+.panel{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r2);padding:14px}
+.panel-title{font-size:.7rem;font-weight:600;color:var(--blue-l);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.panel-title::before{content:'';width:3px;height:12px;background:var(--blue);border-radius:2px;display:inline-block}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.field:last-child{margin-bottom:0}
+.field label{font-size:.72rem;color:var(--ink2);display:flex;align-items:center;gap:4px}
+.field label .sym{font-family:var(--mono);font-size:.78rem;color:var(--teal);background:rgba(45,212,191,.08);padding:1px 5px;border-radius:3px}
+.field label .unit{font-size:.65rem;color:var(--ink3);margin-left:auto}
+.field input{background:var(--bg);border:1px solid var(--border2);border-radius:var(--r);padding:7px 10px;color:var(--ink);font-family:var(--mono);font-size:.82rem;transition:border-color .15s}
+.field input:focus{outline:none;border-color:var(--blue)}
+.field .hint{font-size:.65rem;color:var(--ink3);font-style:italic}
+
+/* Steps */
+.step-tabs{display:flex;gap:4px;padding:0 4px;flex-wrap:wrap}
+.step-btn{flex:1;min-width:52px;padding:6px 4px;border:1px solid var(--border);background:transparent;color:var(--ink3);border-radius:var(--r);cursor:pointer;font-size:.7rem;font-family:var(--mono);transition:all .15s;text-align:center}
+.step-btn.active{background:var(--blue-d);border-color:var(--blue);color:#fff;font-weight:600}
+.step-btn.done{border-color:var(--teal-d);color:var(--teal)}
+.step-btn:hover:not(.active){border-color:var(--border2);color:var(--ink)}
+
+/* Result cards */
+.result-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.rcard{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:8px 10px}
+.rcard .rl{font-size:.65rem;color:var(--ink3);margin-bottom:2px}
+.rcard .rv{font-family:var(--mono);font-size:.9rem;font-weight:600;color:var(--ink)}
+.rcard.ok .rv{color:var(--green)}
+.rcard.warn .rv{color:var(--amber)}
+.rcard.err .rv{color:var(--red)}
+
+.badge-ok{display:inline-block;background:rgba(74,222,128,.12);color:var(--green);border:1px solid var(--green-d);border-radius:3px;font-size:.62rem;padding:1px 6px;font-family:var(--mono);font-weight:600}
+.badge-warn{display:inline-block;background:rgba(245,158,11,.12);color:var(--amber);border:1px solid rgba(245,158,11,.3);border-radius:3px;font-size:.62rem;padding:1px 6px;font-family:var(--mono);font-weight:600}
+.badge-err{display:inline-block;background:rgba(248,113,113,.12);color:var(--red);border:1px solid var(--red-d);border-radius:3px;font-size:.62rem;padding:1px 6px;font-family:var(--mono);font-weight:600}
+
+/* Formula box */
+.fbox{background:rgba(74,144,226,.06);border-left:3px solid var(--blue);border-radius:0 var(--r) var(--r) 0;padding:10px 12px;font-family:var(--mono);font-size:.76rem;color:var(--ink2);line-height:2;margin:8px 0;white-space:pre-wrap}
+.fbox .hi{color:var(--amber-l);font-weight:600}
+.fbox .res{color:var(--teal);font-weight:600}
+
+/* ── Canvas area ── */
+.chart-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.chart-toolbar{padding:10px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);flex-shrink:0}
+.chart-toolbar .label{font-size:.72rem;color:var(--ink2)}
+canvas#chart{flex:1;width:100%;cursor:crosshair}
+
+/* Step explanation panel */
+.explain-panel{height:220px;overflow-y:auto;border-top:1px solid var(--border);padding:14px 18px;background:var(--surface);flex-shrink:0}
+.explain-panel .step-title{font-family:var(--serif);font-size:.88rem;font-weight:600;color:var(--ink);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.step-num{width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-family:var(--mono);font-weight:700;flex-shrink:0}
+.explain-body{font-size:.79rem;color:var(--ink2);line-height:1.9}
+.explain-body b{color:var(--ink);font-weight:500}
+.explain-body .eq{font-family:var(--mono);font-size:.78rem;background:var(--surface2);padding:3px 8px;border-radius:3px;display:inline-block;margin:2px 0;color:var(--amber-l)}
+.check-list{margin-top:8px;display:flex;flex-direction:column;gap:4px}
+.check-item{display:flex;align-items:flex-start;gap:8px;font-size:.76rem}
+.check-icon{flex-shrink:0;margin-top:2px}
+
+/* Tooltip */
+.tooltip{position:fixed;background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:6px 10px;font-size:.72rem;color:var(--ink);pointer-events:none;z-index:100;display:none;font-family:var(--mono)}
+
+.beta-tabs{display:flex;gap:3px;align-items:center}
+.beta-btn{padding:3px 9px;border:1px solid var(--border);background:transparent;
+  color:var(--ink3);border-radius:var(--r);cursor:pointer;font-size:.68rem;
+  font-family:var(--mono);transition:all .15s;white-space:nowrap}
+.beta-btn.active{background:var(--purple);border-color:var(--purple);color:#fff;font-weight:600}
+.beta-btn:hover:not(.active){border-color:var(--border2);color:var(--ink)}
+.chart-note{font-size:.68rem;padding:4px 10px;border-radius:var(--r);
+  background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.2);color:#c4b5fd}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+user-select: none
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- Top bar -->
+<div class="topbar">
+  <div style="width:32px;height:32px;background:var(--blue-d);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--blue-l)" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+  </div>
+  <h1>变位系数选择简易线图法 · 交互演示<span style="font-family:var(--mono);font-size:.75rem;color:var(--teal);margin-left:6px">（GXUQPP）</span></h1>
+  <span class="badge">α=20° · h*ₐ=1</span>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+    <span style="font-size:.7rem;color:var(--ink3)">步骤导航：</span>
+    <div class="step-tabs" id="stepTabs" style="flex-wrap:nowrap">
+      <button class="step-btn active" onclick="setStep(0)">参数</button>
+      <button class="step-btn" onclick="setStep(1)">① 啮合角</button>
+      <button class="step-btn" onclick="setStep(2)">② x_Σ</button>
+      <button class="step-btn" onclick="setStep(3)">③ 许用区</button>
+      <button class="step-btn" onclick="setStep(4)">④ 分配x</button>
+      <button class="step-btn" onclick="setStep(5)">⑤ 结果</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="panel">
+    <div class="panel-title">已知条件</div>
+    <div class="field">
+      <label><span class="sym">z₁</span> 小齿轮齿数</label>
+      <input type="number" id="z1" value="21" min="5" max="200" step="1" oninput="onInput()">
+    </div>
+    <div class="field">
+      <label><span class="sym">z₂</span> 大齿轮齿数</label>
+      <input type="number" id="z2" value="33" min="5" max="200" step="1" oninput="onInput()">
+    </div>
+    <div class="field">
+      <label><span class="sym">m</span> 模数 <span class="unit">mm</span></label>
+      <input type="number" id="m" value="2.5" min="0.5" max="50" step="0.5" oninput="onInput()">
+    </div>
+    <div class="field">
+      <label><span class="sym">a'</span> 实际中心距 <span class="unit">mm</span></label>
+      <input type="number" id="ap" value="70" min="1" step="0.5" oninput="onInput()">
+      <span class="hint">由中心距确定变位系数时输入</span>
+    </div>
+    <div class="field">
+      <label><span class="sym">齿轮类型</span></label>
+      <select id="gearType" onchange="onGearTypeChange()" style="background:var(--bg);border:1px solid var(--border2);border-radius:var(--r);padding:7px 10px;color:var(--ink);font-size:.82rem">
+        <option value="spur">直齿轮</option>
+        <option value="helical">斜齿轮</option>
+      </select>
+    </div>
+    <div class="field">
+      <label><span class="sym">α</span> 法面压力角 <span class="unit">°</span></label>
+      <input type="number" id="alpha" value="20" min="14.5" max="30" step="0.5" oninput="onInput()">
+    </div>
+    <div class="field" id="betaRow" style="display:none">
+      <label><span class="sym">β</span> 螺旋角 <span class="unit">°</span></label>
+      <input type="number" id="beta" value="15" min="1" max="45" step="1" oninput="onInput()">
+      <span class="hint">斜齿：按当量齿数 zᵥ=z/cos³β 查图</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">计算结果</div>
+    <div id="sideResults">
+      <div style="font-size:.72rem;color:var(--ink3);text-align:center;padding:12px 0">输入参数后自动计算</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">许用区校验</div>
+    <div class="check-list" id="checkList">
+      <div style="font-size:.72rem;color:var(--ink3);text-align:center;padding:8px 0">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- Main: chart + explanation -->
+<div class="main">
+  <div class="chart-wrap">
+    <div class="chart-toolbar">
+      <span class="label" id="chartTitle">线图：z_Σ — x_Σ（α=20°，直齿）</span>
+      <div class="beta-tabs" style="margin-left:12px">
+        <span style="font-size:.68rem;color:var(--ink3);margin-right:2px">β=</span>
+        <button class="beta-btn active" onclick="setBeta(0)">0°（直齿）</button>
+        <button class="beta-btn" onclick="setBeta(10)">10°</button>
+        <button class="beta-btn" onclick="setBeta(15)">15°</button>
+        <button class="beta-btn" onclick="setBeta(20)">20°</button>
+        <button class="beta-btn" onclick="setBeta(25)">25°</button>
+        <button class="beta-btn" onclick="setBeta(30)">30°</button>
+      </div>
+      <span style="margin-left:auto;font-size:.68rem;color:var(--ink3)">悬停查看坐标</span>
+      <label style="display:flex;align-items:center;gap:6px;font-size:.7rem;color:var(--ink2)">
+        <input type="checkbox" id="showLeft" onchange="redraw()" style="width:14px;height:14px"> 显示左半图
+      </label>
+    </div>
+    <canvas id="chart"></canvas>
+  </div>
+  <div class="explain-panel" id="explainPanel"></div>
+</div>
+</div>
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// Math utilities
+// ═══════════════════════════════════════════════════════
+const PI = Math.PI;
+const d2r = d => d * PI / 180;
+const r2d = r => r * 180 / PI;
+const invol = a => Math.tan(a) - a;
+const fmt = (v, d=3) => isNaN(v) ? '—' : v.toFixed(d);
+
+// Solve inv(x) = target by bisection
+function solveInvol(target, lo=0.001, hi=PI/3) {
+  for (let i=0; i<60; i++) {
+    const mid = (lo+hi)/2;
+    if (invol(mid) < target) lo = mid; else hi = mid;
+  }
+  return (lo+hi)/2;
+}
+
+// ═══════════════════════════════════════════════════════
+// Core calculation
+// ═══════════════════════════════════════════════════════
+let STATE = {};
+
+function compute() {
+  const z1 = parseFloat(document.getElementById('z1').value)||21;
+  const z2 = parseFloat(document.getElementById('z2').value)||33;
+  const m  = parseFloat(document.getElementById('m').value)||2.5;
+  const ap = parseFloat(document.getElementById('ap').value)||70;
+  const alp = d2r(parseFloat(document.getElementById('alpha').value)||20);
+  const isHelical = document.getElementById('gearType').value === 'helical';
+  const beta_deg  = isHelical ? (parseFloat(document.getElementById('beta').value)||15) : 0;
+  const beta      = d2r(beta_deg);
+  const cosB3     = Math.pow(Math.cos(beta), 3);
+
+  // 斜齿：当量齿数 zᵥ = z/cos³β，用于查图（x 为法面变位系数）
+  const zv1 = z1 / cosB3;
+  const zv2 = z2 / cosB3;
+  // 端面压力角 αt（斜齿时用于几何计算）
+  const alp_t = isHelical ? Math.atan(Math.tan(alp)/Math.cos(beta)) : alp;
+
+  const zh  = z1 + z2;
+  const zhv = zv1 + zv2; // 当量齿数和（用于查图）
+  // 法面标准中心距（斜齿用端面模数 mt = m/cosβ 计算中心距）
+  const mt  = isHelical ? m / Math.cos(beta) : m;
+  const a0  = mt * zh / 2;
+  const ha_star = 1.0, c_star = 0.25;
+
+  // Step 1: meshing angle (端面啮合角 α't)
+  const cosAp = a0 * Math.cos(alp_t) / ap;
+  const alpha_prime = Math.acos(Math.max(-1, Math.min(1, cosAp)));
+  const ap_deg = r2d(alpha_prime);
+
+  // Step 2: total modification coefficient
+  // 直齿：xΣ = zΣ·(inv α' − inv α) / (2·tan α)
+  // 斜齿：xΣn = zΣ·(inv αt' − inv αt) / (2·tan αn)
+  //   分子用端面渐开线函数差（αt'为端面啮合角，αt为端面压力角）
+  //   分母用法面压力角 αn
+  //   注意：不使用当量齿数！zv 仅用于查齿形系数表，不用于变位计算
+  const x_sigma = isHelical
+    ? zh  * (invol(alpha_prime) - invol(alp_t)) / (2 * Math.tan(alp))
+    : zh  * (invol(alpha_prime) - invol(alp))   / (2 * Math.tan(alp));
+  const y = (ap - a0) / mt;  // 中心距变动系数（斜齿用端面模数 mt）
+  const delta_y = x_sigma - y;
+
+  // Step 3: distribution — 按当量齿数比 uv=zv2/zv1=z2/z1=u 查图（斜齿同直齿）
+  const u = z2 / z1;
+  // Determine which distribution line (①~⑤)
+  const lineIdx = u <= 1.2 ? 0 : u <= 1.6 ? 1 : u <= 2.2 ? 2 : u <= 3.0 ? 3 : 4;
+  const uRanges = ['1～1.2','1.2～1.6','1.6～2.2','2.2～3.0','>3.0'];
+  // Distribution: x1 = f(xSigma, u)  — from the 5 lines
+  // Each line passes through origin with slope that depends on u
+  // Slopes derived from the chart: line① u=1: x1=0.5*xS; line⑤ u>3: x1≈0.3*xS (approx.)
+  // More accurate: from the original line equations in the figure
+  // The lines are straight through origin: x1 = k_i * x_sigma
+  const k_dist = [0.50, 0.44, 0.39, 0.35, 0.31]; // k for each line
+  const x1 = k_dist[lineIdx] * x_sigma;
+  const x2 = x_sigma - x1;
+
+  // Step 4: validate — 4 boundary conditions
+  // (a) No undercut
+  const x1_min = ha_star * Math.max(0, (17 - z1)) / 17;
+  const x2_min = ha_star * Math.max(0, (17 - z2)) / 17;
+  const noUndercut = (x1 >= x1_min - 0.001) && (x2 >= x2_min - 0.001);
+
+  // (b) Tip thickness sa >= 0.4m（斜齿用端面模数 mt，基圆用端面压力角 αt）
+  function tipThickness(z, xi) {
+    const d  = mt * z;               // 端面分度圆直径
+    const db = d * Math.cos(alp_t);  // 基圆（用端面压力角）
+    const da = d + 2 * (ha_star + xi - delta_y) * mt;
+    if (da <= db) return 0;
+    const alpha_a = Math.acos(Math.min(1, db / da));
+    // 齿顶厚（端面）
+    const sa_over_mt = PI / (2*z) + 2*xi*Math.tan(alp_t)/z - (invol(alpha_a) - invol(alp_t));
+    return sa_over_mt * da;
+  }
+  const sa1 = tipThickness(z1, x1);
+  const sa2 = tipThickness(z2, x2);
+  const tipOk = (sa1 >= 0.4 * m - 1e-6) && (sa2 >= 0.4 * m - 1e-6);
+
+  // (c) Contact ratio epsilon_a >= 1.2
+  // 斜齿：端面重合度，用端面模数 mt、端面压力角 αt、端面啮合角 αt'
+  function calcEpsilon(x1_, x2_) {
+    const d1  = mt*z1,  d2  = mt*z2;
+    const db1 = d1*Math.cos(alp_t), db2 = d2*Math.cos(alp_t);
+    const da1 = d1 + 2*(ha_star+x1_-delta_y)*mt;
+    const da2 = d2 + 2*(ha_star+x2_-delta_y)*mt;
+    const aa1 = Math.acos(Math.min(1,db1/da1));
+    const aa2 = Math.acos(Math.min(1,db2/da2));
+    return (z1*(Math.tan(aa1)-Math.tan(alpha_prime)) +
+            z2*(Math.tan(aa2)-Math.tan(alpha_prime))) / (2*PI);
+  }
+  const epsilon = calcEpsilon(x1, x2);
+  const epsilonOk = epsilon >= 1.2 - 1e-3;
+
+  // (d) Root circle vs base circle — informational only, NOT a permitted zone boundary
+  // Note: df >= db only holds for z >= ~42 (α=20°), so it cannot be a hard boundary
+  // For negative shift with very large |x|, df < db means non-involute root profile
+  const df1 = m*z1 - 2*(ha_star + c_star - x1)*m;
+  const df2 = m*z2 - 2*(ha_star + c_star - x2)*m;
+  const db1 = m*z1*Math.cos(alp), db2 = m*z2*Math.cos(alp);
+  // Only warn when df < db AND x is negative (large negative shift)
+  const rootOk = (x1 >= -0.5 || df1 >= db1) && (x2 >= -0.5 || df2 >= db2);
+
+  // Permitted zone: three main boundaries only
+  const inPermitted = noUndercut && tipOk && epsilonOk;
+
+  STATE = {
+    z1,z2,m,ap,alp,zh,a0,alpha_prime,ap_deg,
+    isHelical,beta,beta_deg,zv1,zv2,zhv,mt,alp_t,
+    x_sigma,y,delta_y,u,lineIdx,uRanges,k_dist,
+    x1,x2,epsilon,
+    sa1,sa2,
+    noUndercut,tipOk,epsilonOk,rootOk,inPermitted,
+    x1_min,x2_min,
+    df1,df2,db1,db2
+  };
+  return STATE;
+}
+
+// ═══════════════════════════════════════════════════════
+// Chart rendering
+// ═══════════════════════════════════════════════════════
+const ALPHA_N = d2r(20);   // 法面压力角（固定）
+const ALPHA   = ALPHA_N;   // 兼容旧引用
+const HA = 1.0;
+let CHART_BETA = 0;        // 当前图表螺旋角（度），0=直齿
+let CHART_ALPT = ALPHA_N;  // 对应端面压力角
+
+function setBeta(beta_deg) {
+  CHART_BETA = beta_deg;
+  CHART_ALPT = beta_deg > 0
+    ? Math.atan(Math.tan(ALPHA_N) / Math.cos(d2r(beta_deg)))
+    : ALPHA_N;
+  // 更新按钮状态
+  document.querySelectorAll('.beta-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.startsWith(beta_deg + '°') ||
+      (beta_deg === 0 && b.textContent.includes('直齿')));
+  });
+  // 更新图表标题
+  const title = document.getElementById('chartTitle');
+  if (title) {
+    if (beta_deg === 0) {
+      title.textContent = '线图：z_Σ — x_Σn（αn=20°，直齿轮 β=0°）';
+      title.style.color = '';
+    } else {
+      const at = r2d(CHART_ALPT).toFixed(3);
+      title.innerHTML = `线图：z<sub>Σ</sub> — x<sub>Σn</sub>（α<sub>n</sub>=20°，斜齿 β=${beta_deg}°，α<sub>t</sub>=${at}°）`;
+      title.style.color = '#c4b5fd';
+    }
+  }
+  redraw();
+}
+
+// x_Sigma 射线：以 CHART_ALPT 为基准，分母用法面角 ALPHA_N
+// 这样对直齿 (β=0) 完全等同原图，对斜齿生成对应的专用图
+function xSigmaLine(zh, alpha_prime, alp_base) {
+  const ab = (alp_base !== undefined) ? alp_base : CHART_ALPT;
+  return zh * (invol(alpha_prime) - invol(ab)) / (2 * Math.tan(ALPHA_N));
+}
+
+// Permitted zone boundaries (right chart)
+// Lower: undercutting limit — minimum x_sigma given z1,z2
+// For the chart (z1 not specified), use minimum limit of combined
+// x_sigma_min = (17-z1)/17 + (17-z2)/17 ≈ envelope based on zSigma
+// Approximation for chart: x_sigma_min ≈ max(0, (34-zSigma)/17) for equal z1=z2
+// More accurately from the chart: use the root-cut limit line
+
+function underCutLimit(zh) {
+  // 斜齿：不根切条件 xn >= ha*(1 - z·cos³β/17)
+  // 即 x_min = ha*(17 - z·cos³β)/17 = ha*(17 - z/zv_min*17)/17
+  // 简化：用法面当量 zv = z/cos³β，不根切要求 zv >= 17
+  // x_min_n = ha*(17/cos³β - z)/( 17/cos³β ) * ha (近似)
+  // 更准确：x_min_n = ha*(17 - zv)/17，其中 zv = z/cos³β
+  const cosB3 = Math.pow(Math.cos(d2r(CHART_BETA)), 3);
+  const z = zh / 2;
+  const zv = z / cosB3;  // 当量齿数（斜齿不根切用当量齿数）
+  const xmin = HA * Math.max(0, (17 - zv) / 17);
+  return Math.max(0, xmin * 2);  // 两个齿轮之和
+}
+
+// Upper boundary: epsilon_a = 1.2
+// Given zh and x_sigma, find x1=x2=x_sigma/2 and compute epsilon
+function epsilonUpperLimit_alphaP(zh) {
+  const z = zh / 2;
+  const m = 1;
+  const mt = m / Math.cos(d2r(CHART_BETA));
+  const a0 = mt * zh / 2;
+  let lo = CHART_ALPT + 0.001, hi = d2r(35);
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    const xs = xSigmaLine(zh, mid, CHART_ALPT);
+    const y_ = a0 * (Math.cos(CHART_ALPT) / Math.cos(mid) - 1);
+    const dy = xs - y_;
+    // 两个齿轮（z1=z2=z=zh/2，x1=x2=xs/2）
+    const d_ = mt * z;
+    const db = d_ * Math.cos(CHART_ALPT);
+    const da = d_ + 2 * (1 + xs/2 - dy) * mt;
+    if (da <= db + 1e-9) { lo = mid; continue; }
+    const aa = Math.acos(Math.min(1, db / da));
+    // ε = (z1*(tan aa1 - tan α') + z2*(tan aa2 - tan α')) / (2π)
+    //   = 2*z*(tan aa - tan α') / (2π)  （两齿轮对称）
+    const eps = 2 * z * (Math.tan(aa) - Math.tan(mid)) / (2 * PI);
+    if (eps > 1.2) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+// Tip thickness upper limit (sa >= 0.4m)
+function tipUpperLimit_alphaP(zh) {
+  const z = zh / 2;
+  const m_ = 1 / Math.cos(d2r(CHART_BETA));  // mt (m_n=1)
+  let lo = CHART_ALPT + 0.001, hi = d2r(35);
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    const xs = xSigmaLine(zh, mid, CHART_ALPT);
+    const xi = xs / 2;
+    const y_ = (zh/2) * (Math.cos(CHART_ALPT)/Math.cos(mid) - 1);
+    const dy = xs - y_;
+    const d_ = m_ * z;
+    const db = d_ * Math.cos(CHART_ALPT);
+    const da = d_ + 2*(1 + xi - dy) * m_;
+    if (da <= db + 1e-9) { hi = mid; continue; }
+    const aa = Math.acos(Math.min(1, db/da));
+    const sa = (PI/(2*z) + 2*xi*Math.tan(CHART_ALPT)/z - (invol(aa)-invol(CHART_ALPT))) * da;
+    if (sa > 0.4) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+let currentStep = 0;
+let animFrame = null;
+let animT = 0;
+
+function setStep(s) {
+  currentStep = s;
+  document.querySelectorAll('.step-btn').forEach((b,i) => {
+    b.classList.toggle('active', i === s);
+    b.classList.toggle('done', i < s);
+  });
+  updateExplain();
+  redraw();
+}
+
+function onGearTypeChange() {
+  const isH = document.getElementById('gearType').value === 'helical';
+  document.getElementById('betaRow').style.display = isH ? '' : 'none';
+  onInput();
+}
+function onInput() {
+  compute();
+  // 自动同步图表 β 到当前输入
+  const S = STATE;
+  if (S && S.isHelical && Math.round(S.beta_deg) !== CHART_BETA) {
+    // 找最近的可用 β 档位
+    const betas = [0,10,15,20,25,30];
+    const nearest = betas.reduce((a,b) => Math.abs(b-S.beta_deg)<Math.abs(a-S.beta_deg)?b:a);
+    setBeta(nearest);
+  } else if (S && !S.isHelical && CHART_BETA !== 0) {
+    setBeta(0);
+  }
+  updateSidebar();
+  redraw();
+}
+
+function updateSidebar() {
+  const S = STATE;
+  const ap_d = Math.floor(S.ap_deg);
+  const ap_m = Math.floor((S.ap_deg - ap_d) * 60);
+  const ap_s = Math.round(((S.ap_deg - ap_d) * 60 - ap_m) * 60);
+
+  document.getElementById('sideResults').innerHTML = `
+    <div class="result-row">
+      <div class="rcard"><div class="rl">${S.isHelical?'实际齿数和 z_Σ':'齿数和 z_Σ'}</div><div class="rv">${S.zh}</div></div>
+      <div class="rcard"><div class="rl">标准中心距 a₀</div><div class="rv">${fmt(S.a0,2)} mm</div></div>
+    </div>
+    ${S.isHelical ? `<div class="result-row">
+      <div class="rcard" style="border-color:var(--purple)"><div class="rl">端面压力角 αt</div><div class="rv" style="color:var(--purple)">${fmt(r2d(S.alp_t),3)}°</div></div>
+      <div class="rcard" style="border-color:var(--purple)"><div class="rl">端面模数 mt</div><div class="rv" style="color:var(--purple)">${fmt(S.mt,4)} mm</div></div>
+    </div>` : ''}
+    <div class="result-row">
+      <div class="rcard"><div class="rl">啮合角 α'</div><div class="rv">${ap_d}°${ap_m}'${ap_s}"</div></div>
+      <div class="rcard ${S.inPermitted?'ok':'err'}"><div class="rl">总变位系数 x_Σ</div><div class="rv">${fmt(S.x_sigma,4)}</div></div>
+    </div>
+    <div class="result-row">
+      <div class="rcard ${S.x1>=S.x1_min-0.001?'ok':'err'}"><div class="rl">小齿轮 x₁</div><div class="rv">${fmt(S.x1,4)}</div></div>
+      <div class="rcard ${S.x2>=S.x2_min-0.001?'ok':'err'}"><div class="rl">大齿轮 x₂</div><div class="rv">${fmt(S.x2,4)}</div></div>
+    </div>
+    <div class="result-row">
+      <div class="rcard ${S.epsilonOk?'ok':'err'}"><div class="rl">重合度 ε_α</div><div class="rv">${fmt(S.epsilon,3)}</div></div>
+      <div class="rcard"><div class="rl">齿数比 u</div><div class="rv">${fmt(S.u,3)}</div></div>
+    </div>
+  `;
+
+  const checks = [
+    { ok: S.noUndercut, label: '不根切', detail: `x₁≥${fmt(S.x1_min,3)}, x₂≥${fmt(S.x2_min,3)}` },
+    { ok: S.tipOk,      label: '齿顶厚足够', detail: `sₐ₁=${fmt(S.sa1,2)}mm, sₐ₂=${fmt(S.sa2,2)}mm ≥ ${fmt(0.4*S.m,2)}mm` },
+    { ok: S.epsilonOk,  label: '重合度≥1.2', detail: `ε_α = ${fmt(S.epsilon,3)}` },
+    { ok: S.rootOk,     label: '齿根圆提示（负变位）', detail: `仅大负变位时警告，非许用区边界` },
+  ];
+  document.getElementById('checkList').innerHTML = checks.map(c => `
+    <div class="check-item">
+      <span class="check-icon">${c.ok ?
+        '<svg width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="#166534"/><path d="M4 8l3 3 5-5" stroke="#4ade80" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>' :
+        '<svg width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="#991b1b"/><path d="M5 5l6 6M11 5l-6 6" stroke="#f87171" stroke-width="1.8" stroke-linecap="round"/></svg>'
+      }</span>
+      <div>
+        <span style="color:${c.ok?'var(--green)':'var(--red)'};font-weight:500">${c.label}</span>
+        <span style="color:var(--ink3);font-size:.68rem;margin-left:4px">${c.detail}</span>
+      </div>
+    </div>
+  `).join('') + `
+    <div style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px;display:flex;align-items:center;gap:6px">
+      ${S.inPermitted ?
+        '<span class="badge-ok">✓ 在许用区内</span><span style="font-size:.68rem;color:var(--ink3)">变位方案可行</span>' :
+        '<span class="badge-err">✗ 超出许用区</span><span style="font-size:.68rem;color:var(--ink3)">需调整参数</span>'
+      }
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════
+// Canvas drawing
+// ═══════════════════════════════════════════════════════
+const canvas = document.getElementById('chart');
+const ctx = canvas.getContext('2d');
+
+const COLORS = {
+  grid:'#1e2235', axis:'#3a4570', label:'#5a6380',
+  line20:'#3a7be0', lineHi:'#a78bfa', lineLo:'#2dd4bf',
+  zone:'rgba(74,222,128,.06)', zoneBorder:'rgba(74,222,128,.3)',
+  rootLine:'rgba(248,113,113,.5)',
+  tipLine:'rgba(245,158,11,.5)',
+  epsLine:'rgba(74,144,226,.5)',
+  point:'#f59e0b', pointStroke:'#fff',
+  trace:'rgba(245,158,11,.3)',
+  leftLine:'rgba(167,139,250,.7)',
+};
+
+// Chart geometry (right half: z_sigma = 20..200, x_sigma = 0..3)
+let R = {}; // chart rect in canvas pixels
+
+function resize() {
+  canvas.width = canvas.clientWidth * devicePixelRatio;
+  canvas.height = canvas.clientHeight * devicePixelRatio;
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+  updateR();
+  redraw();
+}
+
+function updateR() {
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  const showLeft = document.getElementById('showLeft').checked;
+  if (showLeft) {
+    // Two halves
+    R.right = { x: W*0.42+40, y:30, w: W*0.52, h: H-60, zMin:20, zMax:220, xMin:0, xMax:3.0 };
+    R.left  = { x: 20, y:30, w: W*0.38, h: H-60, x1Min:0, x1Max:1.5, xMin:0, xMax:3.0 };
+  } else {
+    R.right = { x: 40, y:30, w: W-60, h: H-60, zMin:20, zMax:220, xMin:0, xMax:3.0 };
+    R.left  = null;
+  }
+}
+
+function toCanvasRight(zS, xS) {
+  const r = R.right;
+  return {
+    x: r.x + (zS - r.zMin) / (r.zMax - r.zMin) * r.w,
+    y: r.y + r.h - (xS - r.xMin) / (r.xMax - r.xMin) * r.h
+  };
+}
+function toCanvasLeft(x1, xS) {
+  const r = R.left;
+  return {
+    x: r.x + r.w - x1 / r.x1Max * r.w,
+    y: r.y + r.h - (xS - r.xMin) / (r.xMax - r.xMin) * r.h
+  };
+}
+
+function redraw() {
+  if (!canvas.clientWidth) return;
+  updateR();
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  ctx.clearRect(0, 0, W, H);
+  drawRightChart();
+  if (R.left) drawLeftChart();
+  drawStepOverlay();
+}
+
+function drawRightChart() {
+  const r = R.right;
+  ctx.save();
+  ctx.rect(r.x-1, r.y-1, r.w+2, r.h+2);
+  ctx.clip();
+
+  // Background
+  ctx.fillStyle = '#0d1020';
+  ctx.fillRect(r.x, r.y, r.w, r.h);
+
+  // Grid
+  ctx.strokeStyle = COLORS.grid; ctx.lineWidth = 0.5;
+  for (let z = 20; z <= 220; z += 20) {
+    const {x} = toCanvasRight(z, 0);
+    ctx.beginPath(); ctx.moveTo(x, r.y); ctx.lineTo(x, r.y+r.h); ctx.stroke();
+  }
+  for (let xs = 0; xs <= 3.0; xs += 0.5) {
+    const {y} = toCanvasRight(20, xs);
+    ctx.beginPath(); ctx.moveTo(r.x, y); ctx.lineTo(r.x+r.w, y); ctx.stroke();
+  }
+
+  // Permitted zone (fill between lower & upper boundaries)
+  ctx.beginPath();
+  const zhArr = [];
+  for (let zh = 22; zh <= 220; zh += 1) zhArr.push(zh);
+
+  // Lower boundary (undercut limit)
+  let pts_lo = zhArr.map(zh => toCanvasRight(zh, underCutLimit(zh)));
+  // Upper boundary: min of epsilon limit and tip limit
+  let pts_hi = zhArr.map((zh, i) => {
+    const apE = epsilonUpperLimit_alphaP(zh);
+    const apT = tipUpperLimit_alphaP(zh);
+    const ap_eff = Math.min(apE, apT);
+    return toCanvasRight(zh, xSigmaLine(zh, ap_eff));
+  });
+
+  ctx.beginPath();
+  pts_lo.forEach((p,i) => i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
+  for (let i = pts_hi.length-1; i >= 0; i--) ctx.lineTo(pts_hi[i].x, pts_hi[i].y);
+  ctx.closePath();
+  ctx.fillStyle = COLORS.zone;
+  ctx.fill();
+
+  // Zone borders
+  ctx.strokeStyle = COLORS.zoneBorder; ctx.lineWidth = 1;
+  ctx.beginPath(); pts_lo.forEach((p,i) => i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y)); ctx.stroke();
+  ctx.strokeStyle = COLORS.epsLine; ctx.lineWidth = 1;
+  ctx.beginPath(); pts_hi.forEach((p,i) => i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y)); ctx.stroke();
+
+  // Alpha' lines: from CHART_ALPT to CHART_ALPT+6.5°, every 0.5°
+  const at_deg = r2d(CHART_ALPT);
+  const aLines = [];
+  for (let a = at_deg; a <= at_deg + 6.5 + 0.01; a += 0.5) aLines.push(parseFloat(a.toFixed(2)));
+  aLines.forEach(ad => {
+    const ar = d2r(ad);
+    const pts = [];
+    for (let zh = 20; zh <= 220; zh += 5) {
+      const xs = xSigmaLine(zh, ar, CHART_ALPT);
+      if (xs >= -0.1 && xs <= 3.1) pts.push(toCanvasRight(zh, xs));
+    }
+    if (pts.length < 2) return;
+    const isBase = Math.abs(ad - at_deg) < 0.01;   // αt 基准线（xΣ=0）
+    const isMajor = Math.abs(Math.round(ad) - ad) < 0.01;
+    ctx.strokeStyle = isBase ? '#4a90e2' : isMajor ? '#3a5080' : '#252a3a';
+    ctx.lineWidth   = isBase ? 1.5 : isMajor ? 0.8 : 0.4;
+    ctx.beginPath(); pts.forEach((p,i) => i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y)); ctx.stroke();
+
+    // Labels: base line + integer degrees + first/last
+    const isFirst = Math.abs(ad - at_deg) < 0.01;
+    const isLast  = Math.abs(ad - (at_deg+6.5)) < 0.15;
+    if (isBase || isMajor || isFirst || isLast) {
+      const last = pts[pts.length-1];
+      ctx.fillStyle = isBase ? '#6ab0ff' : '#5a6380';
+      ctx.font = `${isBase?'600 ':''}${isBase?10:8}px JetBrains Mono`;
+      ctx.textAlign = 'left';
+      const lbl = isBase ? `αt=${ad.toFixed(1)}°` : `${ad.toFixed(1)}°`;
+      ctx.fillText(lbl, last.x + 3, last.y + 3);
+    }
+  });
+
+  // β note on chart when not spur
+  if (CHART_BETA > 0) {
+    ctx.fillStyle = 'rgba(167,139,250,.7)';
+    ctx.font = '11px Noto Serif SC';
+    ctx.textAlign = 'left';
+    ctx.fillText(`β=${CHART_BETA}°  专用线图`, r.x+10, r.y+18);
+    ctx.font = '9px JetBrains Mono';
+    ctx.fillStyle = 'rgba(167,139,250,.5)';
+    ctx.fillText(`基准角 αt=${r2d(CHART_ALPT).toFixed(3)}°`, r.x+10, r.y+32);
+  }
+
+  // Axes
+  ctx.strokeStyle = COLORS.axis; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(r.x, r.y); ctx.lineTo(r.x, r.y+r.h); ctx.lineTo(r.x+r.w, r.y+r.h); ctx.stroke();
+
+  // Axis labels
+  ctx.fillStyle = COLORS.label; ctx.font = '10px Noto Sans SC';
+  ctx.textAlign = 'center';
+  for (let z = 20; z <= 220; z += 20) {
+    const {x,y} = toCanvasRight(z, 0);
+    ctx.fillText(z, x, y + 14);
+  }
+  // Mark origin O
+  { const {x:ox, y:oy} = toCanvasRight(r.zMin, 0);
+    ctx.fillStyle = '#6ab0ff'; ctx.font = 'bold 11px JetBrains Mono';
+    ctx.textAlign = 'right';
+    ctx.fillText('O', ox - 4, oy + 13); }
+  ctx.textAlign = 'right';
+  for (let xs = 0.5; xs <= 3.0; xs += 0.5) {
+    const {x,y} = toCanvasRight(r.zMin, xs);
+    ctx.fillText(xs.toFixed(1), x - 4, y + 3);
+  }
+  // Axis name
+  ctx.fillStyle = '#5a6380'; ctx.font = '11px Noto Serif SC';
+  ctx.textAlign = 'center';
+  ctx.fillText('z_Σ', r.x + r.w/2, r.y+r.h+26);
+  ctx.save(); ctx.translate(r.x-28, r.y+r.h/2); ctx.rotate(-PI/2);
+  ctx.fillText('x_Σ', 0, 0); ctx.restore();
+
+  // "许用区" label
+  const midZ = 120, midX = 1.0;
+  const mp = toCanvasRight(midZ, midX);
+  ctx.fillStyle = 'rgba(74,222,128,.5)'; ctx.font = '12px Noto Serif SC';
+  ctx.textAlign = 'center'; ctx.fillText('许 用 区', mp.x, mp.y);
+
+  // "根切限制线" label
+  const rlp = toCanvasRight(80, underCutLimit(80));
+  ctx.fillStyle = COLORS.zoneBorder; ctx.font = '9px Noto Sans SC';
+  ctx.textAlign = 'left'; ctx.fillText('根切限制线', rlp.x+3, rlp.y-5);
+
+  ctx.restore();
+}
+
+function drawLeftChart() {
+  const r = R.left;
+  ctx.save();
+  ctx.rect(r.x-1, r.y-1, r.w+2, r.h+2);
+  ctx.clip();
+
+  ctx.fillStyle = '#0d1020';
+  ctx.fillRect(r.x, r.y, r.w, r.h);
+
+  // Grid
+  ctx.strokeStyle = COLORS.grid; ctx.lineWidth = 0.5;
+  for (let x1 = 0; x1 <= 1.5; x1 += 0.25) {
+    const {x} = toCanvasLeft(x1, 0);
+    ctx.beginPath(); ctx.moveTo(x, r.y); ctx.lineTo(x, r.y+r.h); ctx.stroke();
+  }
+  for (let xs = 0; xs <= 3.0; xs += 0.5) {
+    const {y} = toCanvasLeft(0, xs);
+    ctx.beginPath(); ctx.moveTo(r.x, y); ctx.lineTo(r.x+r.w, y); ctx.stroke();
+  }
+
+  // 5 distribution lines
+  const kLines = [
+    {k:0.50, label:'① u=1~1.2',   color:'#4ade80'},
+    {k:0.44, label:'② u=1.2~1.6', color:'#60a5fa'},
+    {k:0.39, label:'③ u=1.6~2.2', color:'#a78bfa'},
+    {k:0.35, label:'④ u=2.2~3.0', color:'#fb923c'},
+    {k:0.31, label:'⑤ u>3.0',    color:'#f87171'},
+  ];
+  kLines.forEach(({k,label,color}, idx) => {
+    const pts = [];
+    for (let xs = 0; xs <= 3.0; xs += 0.1) {
+      pts.push(toCanvasLeft(k * xs, xs));
+    }
+    ctx.strokeStyle = color; ctx.lineWidth = idx === STATE.lineIdx ? 2 : 0.8;
+    ctx.beginPath(); pts.forEach((p,i) => i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y)); ctx.stroke();
+    // Label
+    const lp = pts[pts.length-3];
+    ctx.fillStyle = color; ctx.font = '8px Noto Sans SC';
+    ctx.textAlign = 'left'; ctx.fillText(label, lp.x+2, lp.y-2);
+  });
+
+  // Axes
+  ctx.strokeStyle = COLORS.axis; ctx.lineWidth = 1;
+  ctx.beginPath();
+  const o = toCanvasLeft(0, 0);
+  ctx.moveTo(o.x, r.y); ctx.lineTo(o.x, r.y+r.h); ctx.lineTo(r.x, r.y+r.h); ctx.stroke();
+
+  ctx.fillStyle = COLORS.label; ctx.font = '9px JetBrains Mono';
+  ctx.textAlign = 'center';
+  for (let x1 = 0; x1 <= 1.5; x1 += 0.25) {
+    const {x,y} = toCanvasLeft(x1, 0);
+    ctx.fillText(x1.toFixed(2), x, y+12);
+  }
+  ctx.textAlign = 'left';
+  for (let xs = 0.5; xs <= 3.0; xs += 0.5) {
+    const {x,y} = toCanvasLeft(0, xs);
+    ctx.fillText(xs.toFixed(1), x+3, y+3);
+  }
+  ctx.fillStyle = '#5a6380'; ctx.font = '11px Noto Serif SC';
+  ctx.textAlign = 'center';
+  ctx.fillText('x₁', r.x + r.w/2, r.y+r.h+26);
+  ctx.save(); ctx.translate(r.x+r.w+16, r.y+r.h/2); ctx.rotate(-PI/2);
+  ctx.fillText('x_Σ', 0, 0); ctx.restore();
+
+  ctx.restore();
+}
+
+function drawStepOverlay() {
+  const S = STATE;
+  if (!S.zh) return;
+
+  // Always show the solution point on right chart
+  const {x: px, y: py} = toCanvasRight(S.zh, S.x_sigma);
+
+  if (currentStep >= 2) {
+    // Vertical line at z_sigma
+    ctx.strokeStyle = 'rgba(245,158,11,.4)'; ctx.lineWidth = 1; ctx.setLineDash([4,3]);
+    const {x: vx, y: vy_bot} = toCanvasRight(S.zh, 0);
+    ctx.beginPath(); ctx.moveTo(vx, R.right.y); ctx.lineTo(vx, R.right.y+R.right.h); ctx.stroke();
+    ctx.setLineDash([]);
+    // Label z_sigma on x-axis (highlight)
+    // 斜齿轮查图同样用实际齿数和 zΣ，不用当量齿数（当量齿数仅用于查齿形系数）
+    const zhLabel = `z_Σ=${S.zh}`;
+    ctx.fillStyle = '#f59e0b'; ctx.font = 'bold 10px JetBrains Mono';
+    ctx.textAlign = 'center';
+    ctx.fillRect(vx-22, vy_bot+3, 44, 14);
+    ctx.fillStyle = '#000'; ctx.fillText(zhLabel, vx, vy_bot+13);
+  }
+
+  if (currentStep >= 1) {
+    // Draw the alpha' ray from origin
+    // 斜齿：用端面压力角 alp_t 作基准，与 x_sigma 计算保持一致
+    const ap_r  = S.alpha_prime;
+    const alp_b = S.isHelical ? S.alp_t : ALPHA;
+    const pts = [];
+    for (let zh = 20; zh <= 240; zh += 5) {
+      const xs = xSigmaLine(zh, ap_r, alp_b);
+      if (xs >= -0.1 && xs <= 3.2) pts.push(toCanvasRight(zh, xs));
+    }
+    ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2.5; ctx.setLineDash([]);
+    ctx.shadowColor = '#f59e0b'; ctx.shadowBlur = 6;
+    ctx.beginPath(); pts.forEach((p,i) => i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y)); ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  if (currentStep >= 2) {
+    // Horizontal line at x_sigma
+    ctx.strokeStyle = 'rgba(45,212,191,.4)'; ctx.lineWidth = 1; ctx.setLineDash([4,3]);
+    const {y: hy} = toCanvasRight(20, S.x_sigma);
+    ctx.beginPath(); ctx.moveTo(R.right.x, hy); ctx.lineTo(R.right.x+R.right.w, hy); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Point A1
+    ctx.fillStyle = '#f59e0b'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(px, py, 6, 0, 2*PI); ctx.fill(); ctx.stroke();
+
+    // Label A1
+    ctx.fillStyle = '#f59e0b'; ctx.font = 'bold 11px JetBrains Mono';
+    ctx.textAlign = 'left';
+    ctx.fillText('A₁', px+8, py-4);
+    ctx.fillStyle = '#fcd34d'; ctx.font = '9px JetBrains Mono';
+    const rayAngleLabel = S.isHelical ? `αt'=${fmt(S.ap_deg,2)}°` : `α'=${fmt(S.ap_deg,2)}°`;
+    ctx.fillText(rayAngleLabel, px+8, py+8);
+    ctx.fillText(`x_Σ=${fmt(S.x_sigma,3)}`, px+8, py+18);
+  }
+
+  if (currentStep >= 3) {
+    // Color the point based on permitted zone
+    ctx.fillStyle = S.inPermitted ? '#4ade80' : '#f87171';
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(px, py, 7, 0, 2*PI); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = S.inPermitted ? '#4ade80' : '#f87171';
+    ctx.font = 'bold 9px Noto Sans SC';
+    ctx.textAlign = 'left';
+    ctx.fillText(S.inPermitted ? '✓ 许用区内' : '✗ 超出许用区', px+10, py+16);
+  }
+
+  if (currentStep >= 4 && R.left) {
+    // Point C1 on left chart
+    const {x: cx, y: cy} = toCanvasLeft(S.x1, S.x_sigma);
+    ctx.strokeStyle = 'rgba(245,158,11,.4)'; ctx.lineWidth = 1; ctx.setLineDash([4,3]);
+    // Horizontal line at x_sigma
+    const {y: hy2} = toCanvasLeft(0, S.x_sigma);
+    ctx.beginPath(); ctx.moveTo(R.left.x, hy2); ctx.lineTo(R.left.x+R.left.w, hy2); ctx.stroke();
+    // Vertical drop line from C₁ to x-axis
+    const {y: cy_bot} = toCanvasLeft(S.x1, 0);
+    ctx.strokeStyle = 'rgba(167,139,250,.5)';
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx, cy_bot); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // C₁ point
+    ctx.fillStyle = '#a78bfa'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, cy, 6, 0, 2*PI); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#a78bfa'; ctx.font = 'bold 11px JetBrains Mono';
+    ctx.textAlign = 'right'; ctx.fillText('C₁', cx-8, cy-4);
+    ctx.fillStyle = '#c4b5fd'; ctx.font = '9px JetBrains Mono';
+    ctx.textAlign = 'right'; ctx.fillText(`x_Σ=${fmt(S.x_sigma,3)}`, cx-8, cy+8);
+
+    // x₁ label on x-axis with highlight box
+    ctx.fillStyle = '#a78bfa'; ctx.font = 'bold 10px JetBrains Mono';
+    ctx.textAlign = 'center';
+    ctx.fillRect(cx-20, cy_bot+3, 40, 14);
+    ctx.fillStyle = '#000'; ctx.fillText(`x₁=${fmt(S.x1,3)}`, cx, cy_bot+13);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// Step explanations
+// ═══════════════════════════════════════════════════════
+function updateExplain() {
+  const S = STATE;
+  if (!S.zh) { compute(); updateSidebar(); }
+  const ap_d = Math.floor(S.ap_deg);
+  const ap_m = Math.floor((S.ap_deg - ap_d) * 60);
+  const ap_s = Math.round(((S.ap_deg - ap_d)*60 - ap_m)*60);
+
+  const steps = [
+    // 0: intro
+    {
+      num:'◆', title:'线图简介与使用方法',
+      body:`
+        <b>图1.11（哈尔滨工业大学提出）</b> 分为左右两部分，是选择变位系数的标准工具。<br><br>
+        <b>右半图</b>：横坐标为齿数和 z_Σ，纵坐标为总变位系数 x_Σ。<br>
+        &nbsp;· 阴影区内为<b>许用区</b>（同时满足4个条件）<br>
+        &nbsp;· 各射线为等啮合角线（18°～26°30'）<br><br>
+        <b>左半图</b>（勾选右上角显示）：根据 x_Σ 和齿数比 u=z₂/z₁ 分配 x₁、x₂。<br><br>
+        <b>使用流程：</b> 输入参数 → 求啮合角α' → 确定x_Σ → 验证许用区 → 分配x₁、x₂`
+    },
+    // 1: alpha'
+    {
+      num:'①', title:'由实际中心距 a\' 求啮合角 α\'',
+      body:`
+        已知实际中心距 <b>a' = ${fmt(S.ap,1)} mm</b>，标准中心距 <b>a₀ = m(z₁+z₂)/2 = ${fmt(S.a0,2)} mm</b>。<br><br>
+        <div class="eq">cos α' = a₀·cos α / a' = ${fmt(S.a0,4)}×cos20° / ${fmt(S.ap,1)}</div>
+        <div class="eq">       = ${fmt(S.a0*Math.cos(ALPHA),6)} / ${fmt(S.ap,1)} = ${fmt(Math.cos(S.alpha_prime),6)}</div>
+        <div class="eq" style="color:var(--teal)">∴ α' = arccos(...) = ${ap_d}°${ap_m}'${ap_s}"</div>
+        <br>
+        ${S.isHelical ? `<div style="margin-top:6px;padding:6px 10px;background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.2);border-radius:4px;font-size:.73rem">
+        <b style="color:var(--purple)">斜齿轮说明：</b><br>
+        端面模数 mt = mn/cosβ = ${fmt(S.mt,4)} mm<br>
+        标准中心距 a₀ = mt·zΣ/2 = ${fmt(S.a0,3)} mm<br>
+        端面压力角 αt = arctan(tan αn / cosβ) = ${fmt(r2d(S.alp_t),4)}°<br>
+        端面啮合角 αt' 由 cos αt' = a₀·cos αt / a' 求得</div>` : ''}
+        <br><b>图上操作</b>：从右图原点 O 按 α'=${fmt(S.ap_deg,2)}° 作射线（<span style="color:#f59e0b">橙色线</span>）。`
+    },
+    // 2: x_sigma
+    {
+      num:'②', title:'在右图确定总变位系数 x_Σ',
+      body:`
+        从 O 点按 α'=${ap_d}°${ap_m}'${ap_s}" 作射线，与 z_Σ = <b>${S.zh}</b> 处向上的垂线相交于 <b>A₁</b> 点。<br><br>
+        ${S.isHelical ? `<div class="eq">斜齿：xΣn = zΣ·(inv αt' − inv αt) / (2·tan αn)</div>
+        <div class="eq">    = ${S.zh}×(${fmt(invol(S.alpha_prime),6)} − ${fmt(invol(S.alp_t),6)}) / (2×${fmt(Math.tan(S.alp),5)})</div>` :
+        `<div class="eq">直齿：x_Σ = z_Σ·(inv α' − inv α) / (2·tan α)</div>
+        <div class="eq">    = ${S.zh}×(${fmt(invol(S.alpha_prime),6)} − ${fmt(invol(S.alp),6)}) / (2×${fmt(Math.tan(S.alp),5)})</div>`}
+        <div class="eq" style="color:var(--teal)">    = <b>${fmt(S.x_sigma,4)}</b></div>
+        <br>
+        A₁ 点的纵坐标即为 x_Σ = <b>${fmt(S.x_sigma,4)}</b>。`
+    },
+    // 3: permitted zone
+    {
+      num:'③', title:'验证 A₁ 是否在许用区内',
+      body:`
+        许用区由以下 <b>3个主要边界条件</b> 同时围成：<br><br>
+        <table style="width:100%;border-collapse:collapse;font-size:.75rem">
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:3px 0;color:var(--ink2)">边界</td><td style="color:var(--ink2)">条件</td><td style="color:var(--ink2)">本例</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border2)">
+            <td style="padding:3px 0">下界—根切限制线</td>
+            <td><span class="eq" style="display:inline;padding:1px 4px">x_Σ ≥ x_Σmin（不根切）</span></td>
+            <td><span class="${S.noUndercut?'badge-ok':'badge-err'}">${S.noUndercut?'✓':'✗'}</span></td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border2)">
+            <td style="padding:3px 0">上界—重合度限制</td>
+            <td><span class="eq" style="display:inline;padding:1px 4px">ε_α ≥ 1.2</span></td>
+            <td><span class="${S.epsilonOk?'badge-ok':'badge-err'}">${S.epsilonOk?'✓':'✗'} ε=${fmt(S.epsilon,3)}</span></td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border2)">
+            <td style="padding:3px 0">侧界—齿顶厚限制</td>
+            <td><span class="eq" style="display:inline;padding:1px 4px">sₐ ≥ 0.4m（不变尖）</span></td>
+            <td><span class="${S.tipOk?'badge-ok':'badge-err'}">${S.tipOk?'✓':'✗'}</span></td>
+          </tr>
+        </table>
+        <br>
+        <span style="color:var(--ink3);font-size:.73rem">注：d_f ≥ d_b（齿根圆≥基圆）仅对大负变位场合作辅助提示，<b>不是许用区边界</b>。<br>对 α=20° 标准齿轮，只有 z≥42 时才能满足该条件，多数常用齿数均不满足，故不计入。</span>
+        <br><br>
+        结论：A₁ 点 <b style="color:${S.inPermitted?'var(--green)':'var(--red)'}">${S.inPermitted?'在许用区内 ✓ 可用':'不在许用区内 ✗ 需调整'}</b>`
+    },
+    // 4: distribution
+    {
+      num:'④', title:'由左半图分配 x₁ 和 x₂',
+      body:`
+        勾选右上"显示左半图"后可见。<br><br>
+        计算齿数比：<span class="eq">u = z₂/z₁ = ${S.z2}/${S.z1} = ${fmt(S.u,3)}</span><br><br>
+        u = ${fmt(S.u,3)} 属于 <b>${S.uRanges[S.lineIdx]}</b> 范围，对应斜线 <b>${'①②③④⑤'[S.lineIdx]}</b>（<span style="color:${'#4ade80 #60a5fa #a78bfa #fb923c #f87171'.split(' ')[S.lineIdx]}">彩色线</span>）。<br><br>
+        从 A₁ 点作水平线，与斜线${'①②③④⑤'[S.lineIdx]}交于 <b>C₁</b> 点，<b>C₁ 的横坐标即为 x₁</b>（即为法面变位系数 ${S.isHelical?'xₙ₁':'x₁'}）。<br><br>
+        <div class="eq" style="color:var(--teal)">x₁ = ${fmt(S.x1,4)}</div>
+        <div class="eq" style="color:var(--teal)">x₂ = x_Σ − x₁ = ${fmt(S.x_sigma,4)} − ${fmt(S.x1,4)} = ${fmt(S.x2,4)}</div>`
+    },
+    // 5: final result
+    {
+      num:'⑤', title:'最终结果汇总',
+      body:`
+        <table style="width:100%;border-collapse:collapse;font-size:.78rem">
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:4px 8px;color:var(--ink2)">参数</td>
+            <td style="padding:4px 8px;color:var(--ink2)">公式</td>
+            <td style="padding:4px 8px;color:var(--teal);font-family:var(--mono)">结果</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border2)">
+            <td style="padding:3px 8px">啮合角 α'</td>
+            <td style="padding:3px 8px;color:var(--ink3)">arccos(a₀·cosα/a')</td>
+            <td style="padding:3px 8px;font-family:var(--mono)">${ap_d}°${ap_m}'${ap_s}"</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border2)">
+            <td style="padding:3px 8px">总变位系数 x_Σ</td>
+            <td style="padding:3px 8px;color:var(--ink3)">z_Σ·(inv α'−inv α)/(2 tan α)</td>
+            <td style="padding:3px 8px;font-family:var(--mono)">${fmt(S.x_sigma,4)}</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border2)">
+            <td style="padding:3px 8px">小齿轮变位系数 x₁</td>
+            <td style="padding:3px 8px;color:var(--ink3)">由左图斜线${'①②③④⑤'[S.lineIdx]}读取</td>
+            <td style="padding:3px 8px;font-family:var(--mono);color:var(--teal)">${fmt(S.x1,4)}</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border2)">
+            <td style="padding:3px 8px">大齿轮变位系数 x₂</td>
+            <td style="padding:3px 8px;color:var(--ink3)">x_Σ − x₁</td>
+            <td style="padding:3px 8px;font-family:var(--mono);color:var(--teal)">${fmt(S.x2,4)}</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border2)">
+            <td style="padding:3px 8px">重合度 ε_α</td>
+            <td style="padding:3px 8px;color:var(--ink3)">—</td>
+            <td style="padding:3px 8px;font-family:var(--mono);color:${S.epsilonOk?'var(--green)':'var(--red)'}">${fmt(S.epsilon,3)} ${S.epsilonOk?'✓':'✗'}</td>
+          </tr>
+          <tr>
+            <td style="padding:3px 8px">许用区判断</td>
+            <td style="padding:3px 8px;color:var(--ink3)">4条边界全部满足</td>
+            <td style="padding:3px 8px"><span class="${S.inPermitted?'badge-ok':'badge-err'}">${S.inPermitted?'✓ 合格':'✗ 不合格'}</span></td>
+          </tr>
+        </table>
+        <br>
+        ${!S.inPermitted ? '<span style="color:var(--amber)">建议：调整实际中心距 a\'，使 A₁ 点落入许用区内。</span>' :
+          '<span style="color:var(--green)">变位系数选取完成！可进一步计算齿轮几何尺寸。</span>'}`
+    }
+  ];
+
+  const s = steps[currentStep];
+  document.getElementById('explainPanel').innerHTML = `
+    <div class="step-title">
+      <span class="step-num">${s.num}</span>
+      ${s.title}
+    </div>
+    <div class="explain-body">${s.body}</div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════
+// Tooltip on hover
+// ═══════════════════════════════════════════════════════
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const cx = e.clientX - rect.left;
+  const cy = e.clientY - rect.top;
+  const r = R.right;
+  if (!r) return;
+  if (cx >= r.x && cx <= r.x+r.w && cy >= r.y && cy <= r.y+r.h) {
+    const zS = r.zMin + (cx - r.x) / r.w * (r.zMax - r.zMin);
+    const xS = r.xMin + (1 - (cy - r.y) / r.h) * (r.xMax - r.xMin);
+    const tt = document.getElementById('tooltip');
+    tt.textContent = `z_Σ = ${zS.toFixed(0)},  x_Σ = ${xS.toFixed(3)}`;
+    tt.style.display = 'block';
+    tt.style.left = (e.clientX + 12) + 'px';
+    tt.style.top  = (e.clientY - 28) + 'px';
+  } else {
+    document.getElementById('tooltip').style.display = 'none';
+  }
+});
+canvas.addEventListener('mouseleave', () => {
+  document.getElementById('tooltip').style.display = 'none';
+});
+
+// ═══════════════════════════════════════════════════════
+// Init
+// ═══════════════════════════════════════════════════════
+window.addEventListener('resize', () => { requestAnimationFrame(resize); });
+const ro = new ResizeObserver(() => { requestAnimationFrame(resize); });
+ro.observe(canvas);
+
+compute();
+updateSidebar();
+updateExplain();
+setTimeout(() => resize(), 100);
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('keydown', e => {
+if (e.key === 'F12' || 
+(e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
+(e.ctrlKey && e.key === 'U') ||
+(e.ctrlKey && e.key === 'S')) {
+e.preventDefault();
+return false;
+}
+});
+</script>
+<script>
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('keydown', e => {
+    if (e.key === 'F12' || 
+        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
+        (e.ctrlKey && e.key === 'U') ||
+        (e.ctrlKey && e.key === 'S')) {
+      e.preventDefault();
+      return false;
+    }
+  });
+</script>
+</body>
+</html>
